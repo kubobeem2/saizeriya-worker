@@ -1,5 +1,5 @@
 {
-  "name": "saizeriya-cli",
+  "name": "saizeriya-worker",
   "main": "src/index.ts",
   "compatibility_date": "2025-04-01",
   // Betterzeriya Web UI (SPA build of web/, see `bun run build:web`).
