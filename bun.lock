@@ -5,10 +5,10 @@
     "": {
       "name": "saizeriya-worker",
       "dependencies": {
+        "hono": "^4.11.3",
         "node-html-parser": "^7.0.2",
       },
       "devDependencies": {
-        "hono": "^4.11.3",
         "node-console-progress-bar-tqdm": "^1.0.4",
         "p-limit": "^7.2.0",
         "typescript": "^5",

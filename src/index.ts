@@ -29,6 +29,8 @@
 import { createClient, type ClientState, type LookupItemResult } from './lib/client/client'
 import menuData from './data/menu.json'
 import { handleBetterzeriyaAPI } from './betterzeriya'
+import { dryFetch } from './dry'
+import { getMode, handleModeRequest, injectModeBanner } from './mode'
 
 /* ------------------------------------------------------------------ types */
 
@@ -398,6 +400,7 @@ const HELP = {
     'POST /sessions/:name/<command>                dedicated subroutes: people, lookup, add, remove, cart, cart-page, submit, account, receipt, call, history, menu-page, reorder, alcohol, check',
     'GET /menu?q=<query>                           static menu search (CLI: menu)',
     'GET /menu/:code?shop=<id>&table=<id>          official item lookup',
+    'GET /mode                                      choose real vs dry-run mode (cookie)',
   ],
   commands: Object.keys(COMMAND_ROUTES),
 }
@@ -411,11 +414,20 @@ export const createHandler = (baseFetch?: FetchSource, assetsFetch?: AssetsFetch
       assetsFetch ?? (env.ASSETS ? (req: Request) => env.ASSETS!.fetch(req) : undefined)
 
     try {
+      /* Mode selection (real vs dry-run). In dry mode every upstream call
+         goes to the bundled mock server instead of the official system. */
+      const modeResponse = handleModeRequest(request, path)
+      if (modeResponse) {
+        return modeResponse
+      }
+      const mode = getMode(request)
+      const upstream = mode === 'dry' ? dryFetch : baseFetch
+
       /* Betterzeriya Web UI API (/api/*). Snapshot possession is the
          capability here (same trust model as the upstream server), so the
          API_KEY check below does not apply to these routes. */
       if (path.startsWith('/api/')) {
-        const apiResponse = await handleBetterzeriyaAPI(request, env, path, baseFetch)
+        const apiResponse = await handleBetterzeriyaAPI(request, env, path, upstream)
         return apiResponse ?? json({ error: 'Not found' }, { status: 404 })
       }
 
@@ -427,12 +439,27 @@ export const createHandler = (baseFetch?: FetchSource, assetsFetch?: AssetsFetch
           return new Response(null, { status: 302, headers: { location: '/' } })
         }
         const wantsHTML = request.headers.get('accept')?.includes('text/html')
+        const isNavigation = wantsHTML && !path.startsWith('/_app/')
+        if (isNavigation && !mode) {
+          return new Response(null, { status: 302, headers: { location: '/mode' } })
+        }
         if (path.startsWith('/_app/') || /\.[a-z0-9]+$/i.test(path) || wantsHTML) {
-          const assetResponse = await serveAssets(request)
-          if (assetResponse.status !== 404) {
-            return assetResponse
+          let assetResponse = await serveAssets(request)
+          if (assetResponse.status === 404) {
+            assetResponse = await serveAssets(
+              new Request(new URL('/index.html', request.url), request),
+            )
           }
-          return serveAssets(new Request(new URL('/index.html', request.url), request))
+          if (mode && assetResponse.headers.get('content-type')?.includes('text/html')) {
+            const headers = new Headers(assetResponse.headers)
+            headers.delete('content-length')
+            const html = await assetResponse.text()
+            return new Response(injectModeBanner(html, mode), {
+              status: assetResponse.status,
+              headers,
+            })
+          }
+          return assetResponse
         }
       }
 
@@ -458,7 +485,7 @@ export const createHandler = (baseFetch?: FetchSource, assetsFetch?: AssetsFetch
           if (!shop || !table) {
             throw new Error('shop and table are both required for an official lookup')
           }
-          const result = await lookupOfficialMenuItem(code, shop, table, baseFetch)
+          const result = await lookupOfficialMenuItem(code, shop, table, upstream)
           return json({ result })
         }
         const items = searchStaticMenu(url.searchParams.get('q') ?? code)
@@ -473,7 +500,7 @@ export const createHandler = (baseFetch?: FetchSource, assetsFetch?: AssetsFetch
           if (!shop || !table) {
             throw new Error('shop and table are both required for an official lookup')
           }
-          const result = await lookupOfficialMenuItem(code, shop, table, baseFetch)
+          const result = await lookupOfficialMenuItem(code, shop, table, upstream)
           return json({ result })
         }
         return json({ items: searchStaticMenu(code) })
@@ -495,7 +522,7 @@ export const createHandler = (baseFetch?: FetchSource, assetsFetch?: AssetsFetch
           typeof body.name === 'string' && body.name.trim()
             ? body.name.trim()
             : `s-${crypto.randomUUID().slice(0, 8)}`
-        const jar = createCookieFetch([], baseFetch)
+        const jar = createCookieFetch([], upstream)
         const client = await createClient({
           qrURLSource: qrURL,
           fetchSource: jar.fetchSource,
@@ -537,7 +564,7 @@ export const createHandler = (baseFetch?: FetchSource, assetsFetch?: AssetsFetch
           if (!command) {
             return json({ error: `Unknown command route: ${sub}` }, { status: 404 })
           }
-          const { result, snapshot } = await withSession(env, name, body, baseFetch, (client) =>
+          const { result, snapshot } = await withSession(env, name, body, upstream, (client) =>
             runCommand(client, command, body),
           )
           return json({ ...(result as Record<string, unknown>), snapshot })

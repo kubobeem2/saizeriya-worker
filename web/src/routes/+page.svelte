@@ -136,6 +136,29 @@
 		} catch {}
 	};
 
+	let imageInput: HTMLInputElement | null = null;
+
+	const scanImageFile = async (event: Event) => {
+		const input = event.target as HTMLInputElement;
+		const file = input.files?.[0];
+		input.value = '';
+		if (!file) {
+			return;
+		}
+		try {
+			const Scanner = await loadQrScanner();
+			const result = await Scanner.scanImage(file, { returnDetailedScanResult: true });
+			const value = typeof result === 'string' ? result : result.data;
+			if (value.toLowerCase().includes('saizeriya')) {
+				await prepareSession(value);
+			} else {
+				error = 'サイゼリヤの QR コードを読み取れませんでした。';
+			}
+		} catch {
+			error = '画像から QR コードを読み取れませんでした。';
+		}
+	};
+
 	const submitManualURL = async () => {
 		if (!qrURL.trim()) {
 			error = '公式 QR URL を入力してください。';
@@ -334,7 +357,7 @@
 	</header>
 
 	<div
-		class="absolute top-[calc(max(8px,env(safe-area-inset-top))+46px)] right-4 left-4 z-10 mx-auto grid max-w-[520px] grid-cols-2 gap-1.5 rounded-lg border border-white/10 bg-white/10 p-1 backdrop-blur-2xl"
+		class="absolute top-[calc(max(8px,env(safe-area-inset-top))+46px)] right-4 left-4 z-10 mx-auto grid max-w-[520px] grid-cols-3 gap-1.5 rounded-lg border border-white/10 bg-white/10 p-1 backdrop-blur-2xl"
 		role="tablist"
 		aria-label="入力方法"
 	>
@@ -342,10 +365,15 @@
 			<span class="i-tabler-qrcode text-lg"></span>
 			QR 読み取り
 		</button>
+		<button class="flex min-h-[34px] items-center justify-center gap-2 rounded-md text-[13px] font-extrabold text-white/70" role="tab" aria-selected="false" onclick={() => imageInput?.click()}>
+			<span class="i-tabler-photo text-lg"></span>
+			画像
+		</button>
 		<button class="flex min-h-[34px] items-center justify-center gap-2 rounded-md text-[13px] font-extrabold text-white/70" role="tab" aria-selected="false" onclick={openManualDialog}>
 			<span class="i-tabler-link text-lg"></span>
 			URL 入力
 		</button>
+		<input bind:this={imageInput} type="file" accept="image/*" class="hidden" onchange={scanImageFile} />
 	</div>
 
 	{#if error}

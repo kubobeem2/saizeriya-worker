@@ -2,22 +2,6 @@ import { describe, expect, it } from 'vite-plus/test'
 import mockServer from './mock-server/main'
 import { createHandler } from '../src/index'
 
-const handler = createHandler(mockServer.fetch as never)
-const env = {}
-
-const call = async (path: string, init?: RequestInit) => {
-  const response = await handler(new Request(`http://worker.test${path}`, init), env)
-  const body = (await response.json()) as Record<string, unknown>
-  return { response, body }
-}
-
-const post = (path: string, data: unknown) =>
-  call(path, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(data),
-  })
-
 describe('saizeriya worker (CLI port)', () => {
   it('serves the Betterzeriya SPA through the assets binding', async () => {
     const assets = async (request: Request) => {
@@ -32,14 +16,18 @@ describe('saizeriya worker (CLI port)', () => {
     const spaHandler = createHandler(mockServer.fetch as never, assets)
 
     const root = await spaHandler(
-      new Request('http://worker.test/', { headers: { accept: 'text/html' } }),
+      new Request('http://worker.test/', {
+        headers: { accept: 'text/html', cookie: 'sz_mode=real' },
+      }),
       env,
     )
     expect(root.status).toBe(200)
     expect(await root.text()).toContain('betterzeriya')
 
     const clientRoute = await spaHandler(
-      new Request('http://worker.test/sessions/some-id', { headers: { accept: 'text/html' } }),
+      new Request('http://worker.test/sessions/some-id', {
+        headers: { accept: 'text/html', cookie: 'sz_mode=real' },
+      }),
       env,
     )
     expect(clientRoute.status).toBe(200)
@@ -173,3 +161,132 @@ describe('saizeriya worker (CLI port)', () => {
     expect(unknown.response.status).toBe(400)
   })
 })
+
+describe('mode selection (real vs dry-run)', () => {
+  const post = (
+    handler: ReturnType<typeof createHandler>,
+    path: string,
+    body: unknown,
+    cookie?: string,
+  ) =>
+    handler(
+      new Request(`http://localhost${path}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
+        body: JSON.stringify(body),
+      }),
+      {},
+    )
+
+  it('serves the chooser and sets the mode cookie', async () => {
+    const handler = createHandler(mockServer.fetch as never)
+    const chooser = await handler(new Request('http://localhost/mode'), {})
+    expect(chooser.status).toBe(200)
+    expect(await chooser.text()).toContain('ドライラン')
+
+    const set = await handler(new Request('http://localhost/mode/set?m=dry'), {})
+    expect(set.status).toBe(302)
+    expect(set.headers.get('location')).toBe('/')
+    expect(set.headers.get('set-cookie')).toContain('sz_mode=dry')
+  })
+
+  it('redirects browser navigations to the chooser until a mode is chosen, then shows the banner', async () => {
+    const indexHTML = '<!doctype html><html><body><div id="app"></div></body></html>'
+    const assets = async (request: Request) => {
+      const { pathname } = new URL(request.url)
+      return pathname === '/index.html' || pathname === '/'
+        ? new Response(indexHTML, { headers: { 'content-type': 'text/html' } })
+        : new Response('not found', { status: 404 })
+    }
+    const handler = createHandler(mockServer.fetch as never, assets)
+    const htmlHeaders = { accept: 'text/html' }
+
+    const noMode = await handler(new Request('http://localhost/', { headers: htmlHeaders }), {})
+    expect(noMode.status).toBe(302)
+    expect(noMode.headers.get('location')).toBe('/mode')
+
+    const dry = await handler(
+      new Request('http://localhost/', { headers: { ...htmlHeaders, cookie: 'sz_mode=dry' } }),
+      {},
+    )
+    expect(dry.status).toBe(200)
+    expect(await dry.text()).toContain('ドライラン実行中')
+
+    const real = await handler(
+      new Request('http://localhost/sessions/abc', {
+        headers: { ...htmlHeaders, cookie: 'sz_mode=real' },
+      }),
+      {},
+    )
+    expect(await real.text()).toContain('本番モード')
+  })
+
+  it('runs the full Betterzeriya flow against the mock in dry mode even without a real fetch', async () => {
+    const throwingFetch = () => {
+      throw new Error('real network must not be used in dry mode')
+    }
+    const handler = createHandler(throwingFetch)
+    const cookie = 'sz_mode=dry'
+
+    const created = await post(
+      handler,
+      '/api/sessions',
+      { qrURLSource: 'https://ioes.saizeriya.co.jp/saizeriya2/qr?shop=0525&table=51' },
+      cookie,
+    )
+    expect(created.status).toBe(200)
+    const session = (await created.json()) as any
+    expect(String(session.state.tableNo)).toBe('51')
+
+    const people = await post(
+      handler,
+      `/api/sessions/${session.id}/people`,
+      { officialSession: session.officialSession, peopleCount: 2 },
+      cookie,
+    )
+    expect(people.status).toBe(200)
+    const peopleBody = (await people.json()) as any
+
+    const lookedUp = await post(
+      handler,
+      `/api/sessions/${session.id}/lookup`,
+      { officialSession: peopleBody.officialSession, code: '1202' },
+      cookie,
+    )
+    expect(lookedUp.status).toBe(200)
+    const looked = (await lookedUp.json()) as any
+    const submitted = await post(
+      handler,
+      `/api/sessions/${session.id}/submit`,
+      {
+        officialSession: looked.officialSession,
+        deviceToken: '123e4567-e89b-12d3-a456-426614174000',
+        cart: [{ id: '1202', count: 1, name: looked.name }],
+      },
+      cookie,
+    )
+    expect(submitted.status).toBe(200)
+
+    // Without the dry cookie the same request hits the (throwing) real fetch.
+    const realAttempt = await post(handler, '/api/sessions', {
+      qrURLSource: 'https://ioes.saizeriya.co.jp/saizeriya2/qr?shop=0525&table=51',
+    })
+    expect(realAttempt.status).toBe(502)
+  })
+})
+
+const handler = createHandler(mockServer.fetch as never)
+const env = {}
+
+const call = async (path: string, init?: RequestInit) => {
+  const response = await handler(new Request(`http://worker.test${path}`, init), env)
+  const body = (await response.json()) as Record<string, unknown>
+  return { response, body }
+}
+
+const post = (path: string, data: unknown) =>
+  call(path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(data),
+  })
