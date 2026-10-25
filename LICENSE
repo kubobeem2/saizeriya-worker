@@ -1,6 +1,7 @@
 MIT License
 
-Copyright (c) 2026 Shotaro Nakamura
+Copyright (c) 2026 kubobeem2 (Cloudflare Worker port)
+Copyright (c) 2026 Shotaro Nakamura (upstream pnsk-lab/saizeriya portions)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

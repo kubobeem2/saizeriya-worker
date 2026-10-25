@@ -5,6 +5,12 @@
 
 > 非公式の個人プロジェクトです。サイゼリヤ公式とは関係ありません。
 
+> English: An unofficial port of the Saizeriya mobile-order CLI to Cloudflare
+> Workers. It exposes the CLI commands as a REST API and ships a small Web UI
+> (`/ui`) to start a session from a table QR code, search the menu, order, and
+> check the bill. MIT licensed; the client core is vendored from
+> [pnsk-lab/saizeriya](https://github.com/pnsk-lab/saizeriya).
+
 ターミナル CLI はセッションをローカルファイル（`~/.saizeriya-cli/sessions.json`）に保存し、
 対話 REPL で動くため Workers では動かない。そこでクライアント本体
 （fetch + `node-html-parser` のみで動く部分）を同梱し、CLI コマンドを HTTP API にした。
