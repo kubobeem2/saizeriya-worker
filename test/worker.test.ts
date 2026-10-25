@@ -221,6 +221,17 @@ describe('mode selection (real vs dry-run)', () => {
     expect(await real.text()).toContain('本番モード')
   })
 
+  it('reports the current mode at /api/config', async () => {
+    const handler = createHandler(mockServer.fetch as never)
+    const dry = await handler(
+      new Request('http://localhost/api/config', { headers: { cookie: 'sz_mode=dry' } }),
+      {},
+    )
+    expect(await dry.json()).toEqual({ mode: 'dry' })
+    const unset = await handler(new Request('http://localhost/api/config'), {})
+    expect(await unset.json()).toEqual({ mode: 'real' })
+  })
+
   it('runs the full Betterzeriya flow against the mock in dry mode even without a real fetch', async () => {
     const throwingFetch = () => {
       throw new Error('real network must not be used in dry mode')

@@ -310,7 +310,19 @@
 		}
 	};
 
-	onMount(() => {
+	onMount(async () => {
+		// Dry-run mode skips the QR step entirely: start the demo table
+		// session right away and land on the confirmation dialog.
+		try {
+			const response = await fetch('/api/config');
+			const config = (await response.json()) as { mode?: string };
+			if (config.mode === 'dry') {
+				await prepareSession('https://ioes.saizeriya.co.jp/saizeriya2/qr?shop=0525&table=51');
+				if (pendingSession) {
+					return;
+				}
+			}
+		} catch {}
 		void startScanner();
 	});
 

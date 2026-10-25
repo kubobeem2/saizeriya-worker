@@ -423,6 +423,10 @@ export const createHandler = (baseFetch?: FetchSource, assetsFetch?: AssetsFetch
       const mode = getMode(request)
       const upstream = mode === 'dry' ? dryFetch : baseFetch
 
+      if (path === '/api/config' && method === 'GET') {
+        return json({ mode: mode ?? 'real' })
+      }
+
       /* Betterzeriya Web UI API (/api/*). Snapshot possession is the
          capability here (same trust model as the upstream server), so the
          API_KEY check below does not apply to these routes. */

@@ -56,7 +56,7 @@ const CHOOSER_HTML = `<!doctype html>
 <a class="card dry" href="/mode/set?m=dry">
   <span class="badge">ドライラン</span>
   <h2>試すだけ（注文は届きません）</h2>
-  <p>モックサーバ相手の練習モードです。QR は店内のものでもダミーでも構いません。注文・会計まで全部試せますが、実際の注文は送信されません。</p>
+  <p>モックサーバ相手の練習モードです。QR の読み取りはスキップされ、すぐデモテーブルで注文・会計まで全部試せます。実際の注文は送信されません。</p>
 </a>
 
 <p class="current" id="current"></p>
