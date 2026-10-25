@@ -1,0 +1,17 @@
+{
+  "name": "saizeriya-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-04-01",
+  // Bind a KV namespace to persist sessions across isolates/restarts:
+  //   bunx wrangler kv namespace create SESSIONS
+  // then uncomment and fill in the id. Without KV the Worker keeps sessions
+  // in memory (per isolate) and returns the full snapshot in every response;
+  // pass that snapshot back in the next request body to continue statelessly.
+  // "kv_namespaces": [
+  //   { "binding": "SESSIONS", "id": "<your-kv-namespace-id>" }
+  // ],
+  //
+  // Optional but recommended: protect the ordering endpoints with a shared
+  // secret (clients send it as the `x-api-key` header):
+  //   bunx wrangler secret put API_KEY
+}
