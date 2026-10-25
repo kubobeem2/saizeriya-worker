@@ -1,30 +1,51 @@
 # saizeriya-worker
 
 サイゼリヤのモバイルオーダー用 CLI（[pnsk-lab/saizeriya](https://github.com/pnsk-lab/saizeriya) の
-`saizeriya.js` CLI）を **Cloudflare Workers** に移植したもの。API と Web UI を同梱している。
+`saizeriya.js` CLI）を **Cloudflare Workers** に移植したもの。
+Web UI は上流に同梱の **Betterzeriya** そのもので、API も2系統ある。
 
 > 非公式の個人プロジェクトです。サイゼリヤ公式とは関係ありません。
 
 > English: An unofficial port of the Saizeriya mobile-order CLI to Cloudflare
-> Workers. It exposes the CLI commands as a REST API and ships a small Web UI
-> (`/ui`) to start a session from a table QR code, search the menu, order, and
-> check the bill. MIT licensed; the client core is vendored from
+> Workers, with the upstream Betterzeriya web UI (served as a SPA) and its
+> `/api/*` contract implemented on the Worker, plus a CLI-style REST API.
+> MIT licensed; the client core and the UI are vendored from
 > [pnsk-lab/saizeriya](https://github.com/pnsk-lab/saizeriya).
 
-ターミナル CLI はセッションをローカルファイル（`~/.saizeriya-cli/sessions.json`）に保存し、
-対話 REPL で動くため Workers では動かない。そこでクライアント本体
-（fetch + `node-html-parser` のみで動く部分）を同梱し、CLI コマンドを HTTP API にした。
+ターミナル CLI はセッションをローカルファイルに保存し対話 REPL で動くため
+Workers では動かない。そこでクライアント本体（fetch + `node-html-parser`
+のみ）を同梱し、Worker 上で API 化した。
 
-## できること
+## Web UI（Betterzeriya）
 
-- **Web UI**（`/ui`）: QR からセッション開始、メニュー検索、カート追加、注文送信、会計・レシート確認、店員呼び出し
-- **API**: CLI コマンド一式を REST で
-  - `POST /sessions` セッション開始（`{name?, qrURL, people?}`）
-  - `GET /sessions` / `GET /sessions/:name` / `DELETE /sessions/:name`
-  - `POST /sessions/:name/cmd` `{command, ...}`、または `/sessions/:name/<command>` 専用サブルート
-  - コマンド: `state` `people` `lookup` `add` `remove` `cart` `cart-page` `submit` `account` `receipt` `call` `history` `menu-page` `reorder` `alcohol` `check`
-  - `GET /menu?q=<query>` 静的メニュー検索、`GET /menu/:code?shop=<id>&table=<id>` 公式 lookup
-  - `GET /` 使い方（JSON）。ブラウザで開くと `/ui` へ
+- `web/` が Betterzeriya 本体。SPA としてビルドし（adapter-static、
+  `ssr = false` に変更）、Worker の静的アセットとして `/` から配信する
+- 画面: QR スキャン/URL 入力 → 人数 → メニュー（画像・検索・ガチャ等）→
+  注文 → 会計・レシート、端末名つきの「誰が何を注文したか」表示、AI ページ
+  （WebLLM、ブラウザ内動作）
+- `/ui` は `/` へのリダイレクト
+
+Betterzeriya が叩く API は上流 `betterzeriya-server` の契約を移植:
+
+- `POST /api/sessions` `{qrURLSource}` → `{id, state, officialSession}`
+- `POST /api/sessions/:id` 状態リフレッシュ
+- `POST /api/sessions/:id/people` / `name` / `lookup` / `submit` / `account` / `receipt` / `call`
+- セッションはフロントが localStorage に持つ `officialSession`
+  （state + 公式クッキー + roomHash）を毎回 POST する方式。上流と同じく
+  スナップショットの所持が権限になる
+- 部屋モデル（端末名・注文者表示）は roomHash（QR URL の SHA-256）単位で
+  KV `SESSIONS`（なければメモリ）に 24 時間保持
+
+## CLI 互換 API
+
+- `POST /sessions` `{name?, qrURL, people?}` セッション開始
+- `GET /sessions` / `GET /sessions/:name` / `DELETE /sessions/:name`
+- `POST /sessions/:name/cmd` `{command, ...}`、または `/sessions/:name/<command>`
+  - コマンド: `state` `people` `lookup` `add` `remove` `cart` `cart-page`
+    `submit` `account` `receipt` `call` `history` `menu-page` `reorder`
+    `alcohol` `check`
+- `GET /menu?q=<query>` 静的メニュー検索、`GET /menu/:code?shop=<id>&table=<id>` 公式 lookup
+- `GET /` 使い方（JSON、ブラウザでは UI）
 
 使用例:
 
@@ -36,15 +57,16 @@ curl -X POST "$BASE/sessions/table1/submit" -d '{}'
 curl -X POST "$BASE/sessions/table1/account" -d '{}'
 ```
 
-## セッション保存
+## セッション保存（CLI 互換 API 側）
 
 - `SESSIONS` KV を bind すると KV に保存（`wrangler.jsonc` 参照）
-- KV なしの場合は isolate 内メモリ＋各レスポンスの `snapshot` を次回 body に渡す方式
+- KV なしの場合は isolate 内メモリ＋各レスポンスの `snapshot` を次回 body に
+  渡す方式
 
 ## 認証
 
-`API_KEY` secret を設定すると `GET /` と `/ui` 以外は `x-api-key` ヘッダー必須になる。
-注文できる API を無防備に公開しないこと。Web UI からもキーを入力できる。
+`API_KEY` secret を設定すると CLI 互換 API（`/sessions`、`/menu`）で
+`x-api-key` ヘッダーが必須になる。Betterzeriya の `/api/*` は対象外。
 
 ```bash
 bunx wrangler secret put API_KEY
@@ -54,6 +76,7 @@ bunx wrangler secret put API_KEY
 
 ```bash
 bun install
+bun run build:web           # Betterzeriya を web/build/ にビルド
 bunx wrangler login
 bunx wrangler kv namespace create SESSIONS   # KV を使う場合。id を wrangler.jsonc へ
 bun run deploy
@@ -62,8 +85,9 @@ bun run deploy
 ## 開発
 
 ```bash
-bun run dev    # wrangler dev
-bun run test   # モックサーバ相手のフル注文フロー + Web UI のテスト
+bun run build:web
+bun run dev    # wrangler dev（UI + API 一体）
+bun run test   # モックサーバ相手に CLI API と /api/* の注文フロー + SPA 配信をテスト
 ```
 
 ## CLI との差分
@@ -73,6 +97,6 @@ bun run test   # モックサーバ相手のフル注文フロー + Web UI の�
 
 ## クレジット / ライセンス
 
-クライアント本体・メニューデータ・モックサーバは
+クライアント本体・メニューデータ・モックサーバ・Betterzeriya は
 [pnsk-lab/saizeriya](https://github.com/pnsk-lab/saizeriya)（MIT License, Copyright (c) 2026 Shotaro Nakamura）
 から同梱したもの。ライセンス全文は `LICENSE` を参照。

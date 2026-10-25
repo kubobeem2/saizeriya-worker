@@ -28,7 +28,7 @@
  */
 import { createClient, type ClientState, type LookupItemResult } from './lib/client/client'
 import menuData from './data/menu.json'
-import { UI_HTML } from './ui'
+import { handleBetterzeriyaAPI } from './betterzeriya'
 
 /* ------------------------------------------------------------------ types */
 
@@ -42,7 +42,10 @@ export interface KVNamespaceLike {
 export interface Env {
   SESSIONS?: KVNamespaceLike
   API_KEY?: string
+  ASSETS?: { fetch: (request: Request) => Promise<Response> }
 }
+
+type AssetsFetch = (request: Request) => Promise<Response>
 
 type CookieEntry = [string, string]
 type FetchSource = (request: Request) => Promise<Response> | Response
@@ -399,18 +402,38 @@ const HELP = {
   commands: Object.keys(COMMAND_ROUTES),
 }
 
-export const createHandler = (baseFetch?: FetchSource) => {
+export const createHandler = (baseFetch?: FetchSource, assetsFetch?: AssetsFetch) => {
   return async (request: Request, env: Env): Promise<Response> => {
     const url = new URL(request.url)
     const path = url.pathname.replace(/\/+$/, '') || '/'
     const method = request.method.toUpperCase()
+    const serveAssets =
+      assetsFetch ?? (env.ASSETS ? (req: Request) => env.ASSETS!.fetch(req) : undefined)
 
     try {
-      if (
-        method === 'GET' &&
-        (path === '/ui' || (path === '/' && request.headers.get('accept')?.includes('text/html')))
-      ) {
-        return new Response(UI_HTML, { headers: { 'content-type': 'text/html; charset=utf-8' } })
+      /* Betterzeriya Web UI API (/api/*). Snapshot possession is the
+         capability here (same trust model as the upstream server), so the
+         API_KEY check below does not apply to these routes. */
+      if (path.startsWith('/api/')) {
+        const apiResponse = await handleBetterzeriyaAPI(request, env, path, baseFetch)
+        return apiResponse ?? json({ error: 'Not found' }, { status: 404 })
+      }
+
+      /* Betterzeriya SPA (built web app in web/build, bound as ASSETS).
+         Browser navigations and static files go to the assets; the SPA
+         fallback serves index.html for client-side routes. */
+      if (serveAssets && method === 'GET') {
+        if (path === '/ui') {
+          return new Response(null, { status: 302, headers: { location: '/' } })
+        }
+        const wantsHTML = request.headers.get('accept')?.includes('text/html')
+        if (path.startsWith('/_app/') || /\.[a-z0-9]+$/i.test(path) || wantsHTML) {
+          const assetResponse = await serveAssets(request)
+          if (assetResponse.status !== 404) {
+            return assetResponse
+          }
+          return serveAssets(new Request(new URL('/index.html', request.url), request))
+        }
       }
 
       if (path === '/' && method === 'GET') {

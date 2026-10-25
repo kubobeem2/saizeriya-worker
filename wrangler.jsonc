@@ -2,6 +2,14 @@
   "name": "saizeriya-worker",
   "main": "src/index.ts",
   "compatibility_date": "2025-04-01",
+  // Betterzeriya Web UI (SPA build of web/, see `bun run build:web`).
+  "assets": {
+    "directory": "./web/build",
+    "binding": "ASSETS",
+    "html_handling": "none",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/sessions", "/sessions/*", "/menu", "/menu/*"],
+  },
   // Bind a KV namespace to persist sessions across isolates/restarts:
   //   bunx wrangler kv namespace create SESSIONS
   // then uncomment and fill in the id. Without KV the Worker keeps sessions
@@ -11,7 +19,9 @@
   //   { "binding": "SESSIONS", "id": "<your-kv-namespace-id>" }
   // ],
   //
-  // Optional but recommended: protect the ordering endpoints with a shared
-  // secret (clients send it as the `x-api-key` header):
+  // Optional but recommended: protect the CLI-style ordering endpoints with a
+  // shared secret (clients send it as the `x-api-key` header):
   //   bunx wrangler secret put API_KEY
+  // The Betterzeriya /api/* routes rely on snapshot possession instead,
+  // the same trust model as the upstream betterzeriya-server.
 }

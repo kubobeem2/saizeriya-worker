@@ -19,13 +19,100 @@ const post = (path: string, data: unknown) =>
   })
 
 describe('saizeriya worker (CLI port)', () => {
-  it('serves the Web UI at /ui', async () => {
-    const response = await handler(new Request('http://worker.test/ui'), env)
-    expect(response.status).toBe(200)
-    expect(response.headers.get('content-type')).toContain('text/html')
-    const html = await response.text()
-    expect(html).toContain('saizeriya-cli Web UI')
-    expect(html).toContain('/sessions')
+  it('serves the Betterzeriya SPA through the assets binding', async () => {
+    const assets = async (request: Request) => {
+      const pathname = new URL(request.url).pathname
+      if (pathname === '/index.html' || pathname === '/') {
+        return new Response('<html><body>betterzeriya</body></html>', {
+          headers: { 'content-type': 'text/html' },
+        })
+      }
+      return new Response('not found', { status: 404 })
+    }
+    const spaHandler = createHandler(mockServer.fetch as never, assets)
+
+    const root = await spaHandler(
+      new Request('http://worker.test/', { headers: { accept: 'text/html' } }),
+      env,
+    )
+    expect(root.status).toBe(200)
+    expect(await root.text()).toContain('betterzeriya')
+
+    const clientRoute = await spaHandler(
+      new Request('http://worker.test/sessions/some-id', { headers: { accept: 'text/html' } }),
+      env,
+    )
+    expect(clientRoute.status).toBe(200)
+    expect(await clientRoute.text()).toContain('betterzeriya')
+
+    const legacy = await spaHandler(new Request('http://worker.test/ui'), env)
+    expect(legacy.status).toBe(302)
+    expect(legacy.headers.get('location')).toBe('/')
+  })
+
+  it('runs the Betterzeriya /api flow against the mock server', async () => {
+    const created = await post('/api/sessions', { qrURLSource: 'http://example.com/saizeriya3/qr' })
+    expect(created.response.status).toBe(200)
+    const id = created.body.id as string
+    const officialSession = created.body.officialSession as Record<string, unknown>
+    expect(id).toBeTruthy()
+    expect(officialSession.roomHash).toMatch(/^[a-f0-9]{64}$/)
+    expect((created.body.state as Record<string, unknown>).baseURL).toBeUndefined()
+
+    const deviceToken = 'device-token-0123456789-abcdefghij'
+    const named = await post(`/api/sessions/${id}/name`, {
+      officialSession,
+      deviceToken,
+      name: 'テスト端末',
+    })
+    expect(named.body).toEqual({ name: 'テスト端末' })
+
+    const people = await post(`/api/sessions/${id}/people`, {
+      officialSession: named.body.officialSession ?? officialSession,
+      peopleCount: 2,
+    })
+    expect(people.response.status).toBe(200)
+    const session2 = people.body.officialSession as Record<string, unknown>
+    expect((people.body.state as Record<string, unknown>).peopleCount).toBe(2)
+
+    const lookup = await post(`/api/sessions/${id}/lookup`, {
+      officialSession: session2,
+      code: '1202',
+    })
+    expect(lookup.response.status).toBe(200)
+    expect(lookup.body.result).toBe('OK')
+    const session3 = lookup.body.officialSession as Record<string, unknown>
+
+    const submitted = await post(`/api/sessions/${id}/submit`, {
+      officialSession: session3,
+      deviceToken,
+      cart: [{ id: '1202', count: 2, name: '小ｴﾋﾞのｻﾗﾀﾞ' }],
+    })
+    expect(submitted.response.status).toBe(200)
+    const attributions = submitted.body.orderAttributions as { name?: string; lines: unknown[] }[]
+    expect(attributions).toHaveLength(1)
+    expect(attributions[0]?.name).toBe('テスト端末')
+    expect(attributions[0]?.lines).toHaveLength(1)
+    const session4 = submitted.body.officialSession as Record<string, unknown>
+
+    const account = await post(`/api/sessions/${id}/account`, { officialSession: session4 })
+    expect(account.response.status).toBe(200)
+    expect(account.body.account).toMatchObject({ count: 2, total: 700 })
+    expect(account.body.barcodeValue).toMatch(/^SZ-/)
+    expect(account.body.receiptShown).toBe(false)
+
+    const receipt = await post(`/api/sessions/${id}/receipt`, {
+      officialSession: account.body.officialSession,
+    })
+    expect(receipt.response.status).toBe(200)
+    expect(receipt.body.receiptShown).toBe(true)
+
+    const called = await post(`/api/sessions/${id}/call`, {
+      officialSession: receipt.body.officialSession,
+      after: false,
+    })
+    expect(called.response.status).toBe(200)
+    expect(called.body.result).toEqual({ result: 'OK' })
   })
 
   it('serves help and the static menu (CLI: menu)', async () => {
