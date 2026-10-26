@@ -331,6 +331,43 @@ export class Server {
     return table
   }
 
+  /**
+   * Reinstall a table from a serialized state (used by the Worker's
+   * dry-run mode to carry the mock table across Worker isolates via the
+   * client snapshot). Also maps the client's current page URL id to the
+   * restored table so its next request lands here.
+   */
+  restoreSession(state: TableState, urlId: string) {
+    const table = new Table(this, state.shopId, state.tableId)
+    const restored: TableState = {
+      ...state,
+      cart: cloneCart(state.cart),
+      submittedOrders: state.submittedOrders.map(cloneCart),
+    }
+    ;(table as { state: TableState }).state = restored
+    this.tables.set(table.id, table)
+    if (urlId) {
+      this.#urlIds.set(urlId, table)
+    }
+    return table
+  }
+
+  findTableByUrlId(urlId: string) {
+    return this.#urlIds.get(urlId)
+  }
+
+  findTableBySessionId(sessionId: string) {
+    // Restores append newer tables with the same sessionId; the latest
+    // one is the live table.
+    let found: Table | undefined
+    for (const table of this.tables.values()) {
+      if (table.state.sessionId === sessionId) {
+        found = table
+      }
+    }
+    return found
+  }
+
   setMenuItems(items: MenuItem[]) {
     this.menuItems.clear()
     for (const item of items) {
@@ -868,5 +905,8 @@ export class Server {
 }
 
 const server = new Server()
+
+/** The default instance behind the default export (for state carry). */
+export const mockServerInstance = server
 
 export default server.app

@@ -12,7 +12,7 @@
  */
 import menuData from './data/menu.json'
 import { handleBetterzeriyaAPI } from './betterzeriya'
-import { dryFetch } from './dry'
+import { captureDryIntoPayload, dryFetch, restoreDryTable } from './dry'
 import type { RoomEnv } from './betterzeriya'
 
 type FetchSource = (request: Request) => Promise<Response> | Response
@@ -309,6 +309,7 @@ const callTool = async (
         })
         const payload = await readPayload(response)
         if (!response.ok) return toolResult(payload, true)
+        if (mode === 'dry') captureDryIntoPayload(payload)
         const created = payload as { id: string; officialSession: unknown; state: unknown }
         return toolResult({
           session_id: `${mode}-${created.id}`,
@@ -331,19 +332,20 @@ const callTool = async (
     }
     const upstream = parsed.mode === 'dry' ? dryFetch : baseFetch
     const officialSession = args.official_session
+    if (parsed.mode === 'dry') restoreDryTable(officialSession)
     const base = `/api/sessions/${parsed.id}`
 
     switch (name) {
       case 'get_session_state': {
         const response = await dispatch(upstream, env, base, { officialSession })
-        return wrapSessionResponse(response)
+        return wrapSessionResponse(response, parsed.mode)
       }
       case 'set_people_count': {
         const response = await dispatch(upstream, env, `${base}/people`, {
           officialSession,
           peopleCount: Number(args.people_count),
         })
-        return wrapSessionResponse(response)
+        return wrapSessionResponse(response, parsed.mode)
       }
       case 'set_device_name': {
         const deviceToken =
@@ -364,7 +366,7 @@ const callTool = async (
           officialSession,
           code: String(args.code ?? ''),
         })
-        return wrapSessionResponse(response)
+        return wrapSessionResponse(response, parsed.mode)
       }
       case 'submit_order': {
         const cart = Array.isArray(args.cart) ? args.cart : []
@@ -383,22 +385,22 @@ const callTool = async (
             }
           }),
         })
-        return wrapSessionResponse(response)
+        return wrapSessionResponse(response, parsed.mode)
       }
       case 'get_account': {
         const response = await dispatch(upstream, env, `${base}/account`, { officialSession })
-        return wrapSessionResponse(response)
+        return wrapSessionResponse(response, parsed.mode)
       }
       case 'get_receipt': {
         const response = await dispatch(upstream, env, `${base}/receipt`, { officialSession })
-        return wrapSessionResponse(response)
+        return wrapSessionResponse(response, parsed.mode)
       }
       case 'call_staff': {
         const response = await dispatch(upstream, env, `${base}/call`, {
           officialSession,
           after: Boolean(args.after_dessert),
         })
-        return wrapSessionResponse(response)
+        return wrapSessionResponse(response, parsed.mode)
       }
       default:
         return toolResult({ error: `Unknown tool: ${name}` }, true)
@@ -436,9 +438,10 @@ const readPayload = async (response: Response): Promise<unknown> => {
   }
 }
 
-const wrapSessionResponse = async (response: Response) => {
+const wrapSessionResponse = async (response: Response, mode?: string) => {
   const payload = (await readPayload(response)) as Record<string, unknown>
   if (!response.ok) return toolResult(payload, true)
+  if (mode === 'dry') captureDryIntoPayload(payload)
   const { officialSession, ...rest } = payload
   return toolResult({ ...rest, official_session: officialSession })
 }

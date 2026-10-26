@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test'
-import mockServer from './mock-server/main'
+import mockServer, { mockServerInstance } from './mock-server/main'
 import { createHandler } from '../src/index'
 
 describe('saizeriya worker (CLI port)', () => {
@@ -253,6 +253,59 @@ describe('MCP server (/mcp)', () => {
       cart: [{ code: '1202', count: 2, name: looked.structuredContent.item_data.name }],
     })
     expect(submitted.isError).toBe(false)
+
+    const account = await call('get_account', {
+      session_id: session.session_id,
+      official_session: submitted.structuredContent.official_session,
+    })
+    expect(account.structuredContent.account.total).toBe(700)
+  })
+
+  it('survives the mock state being wiped between calls (isolate change)', async () => {
+    const throwingFetch = () => {
+      throw new Error('real network must not be used in dry mode')
+    }
+    const handler = createHandler(throwingFetch)
+    const call = async (name: string, args: unknown) => {
+      const { body } = await rpc(handler, 'tools/call', { name, arguments: args })
+      expect(body.error).toBeUndefined()
+      return body.result
+    }
+
+    const created = await call('create_session', {
+      qr_url: 'https://ioes.saizeriya.co.jp/saizeriya2/qr?shop=0525&table=51',
+      mode: 'dry',
+    })
+    const session = created.structuredContent
+    // The snapshot must carry the mock table state for the next isolate.
+    expect(session.official_session._dryTableState).toBeTruthy()
+
+    // Simulate landing on a fresh isolate with an empty mock.
+    mockServerInstance.tables.clear()
+
+    const people = await call('set_people_count', {
+      session_id: session.session_id,
+      official_session: session.official_session,
+      people_count: 2,
+    })
+    expect(people.isError).toBe(false)
+    mockServerInstance.tables.clear()
+
+    const looked = await call('lookup_item', {
+      session_id: session.session_id,
+      official_session: people.structuredContent.official_session,
+      code: '1202',
+    })
+    expect(looked.isError).toBe(false)
+    mockServerInstance.tables.clear()
+
+    const submitted = await call('submit_order', {
+      session_id: session.session_id,
+      official_session: looked.structuredContent.official_session,
+      cart: [{ code: '1202', count: 2, name: looked.structuredContent.item_data.name }],
+    })
+    expect(submitted.isError).toBe(false)
+    mockServerInstance.tables.clear()
 
     const account = await call('get_account', {
       session_id: session.session_id,

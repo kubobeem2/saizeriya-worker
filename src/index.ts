@@ -29,7 +29,7 @@
 import { createClient, type ClientState, type LookupItemResult } from './lib/client/client'
 import menuData from './data/menu.json'
 import { handleBetterzeriyaAPI } from './betterzeriya'
-import { dryFetch } from './dry'
+import { captureDryIntoResponse, dryFetch, restoreDryFromRequest } from './dry'
 import { handleMCP } from './mcp'
 import { getMode, handleModeRequest, injectModeBanner } from './mode'
 
@@ -408,7 +408,7 @@ const HELP = {
 }
 
 export const createHandler = (baseFetch?: FetchSource, assetsFetch?: AssetsFetch) => {
-  return async (request: Request, env: Env): Promise<Response> => {
+  const handle = async (request: Request, env: Env): Promise<Response> => {
     const url = new URL(request.url)
     const path = url.pathname.replace(/\/+$/, '') || '/'
     const method = request.method.toUpperCase()
@@ -590,6 +590,17 @@ export const createHandler = (baseFetch?: FetchSource, assetsFetch?: AssetsFetch
       }
       return errorResponse(error)
     }
+  }
+
+  /* In dry mode the mock table state rides along in the session
+     snapshot so a session survives landing on a different isolate. */
+  return async (request: Request, env: Env): Promise<Response> => {
+    if (getMode(request) !== 'dry') {
+      return handle(request, env)
+    }
+    await restoreDryFromRequest(request)
+    const response = await handle(request, env)
+    return captureDryIntoResponse(response)
   }
 }
 
