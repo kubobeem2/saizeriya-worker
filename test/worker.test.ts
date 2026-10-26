@@ -118,6 +118,17 @@ describe('saizeriya worker (CLI port)', () => {
     expect((byCode.body.items as { id: string }[])[0]?.id).toBe('3201')
   })
 
+  it('serves the docs page with MCP / API / GitHub links', async () => {
+    const docs = await handler(new Request('http://worker.test/docs'), env)
+    expect(docs.status).toBe(200)
+    expect(docs.headers.get('content-type')).toContain('text/html')
+    const html = await docs.text()
+    expect(html).toContain('id="mcp"')
+    expect(html).toContain('id="api"')
+    expect(html).toContain('https://github.com/kubobeem2/saizeriya-worker')
+    expect(html).toContain('/mcp')
+  })
+
   it('runs a full order flow against the mock server', async () => {
     const created = await post('/sessions', {
       name: 'worker-test',

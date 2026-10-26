@@ -32,6 +32,7 @@ import { handleBetterzeriyaAPI } from './betterzeriya'
 import { captureDryIntoResponse, dryFetch, restoreDryFromRequest } from './dry'
 import { handleMCP } from './mcp'
 import { getMode, handleModeRequest, injectModeBanner } from './mode'
+import { handleDocsRequest } from './docs'
 
 /* ------------------------------------------------------------------ types */
 
@@ -402,6 +403,7 @@ const HELP = {
     'GET /menu?q=<query>                           static menu search (CLI: menu)',
     'GET /menu/:code?shop=<id>&table=<id>          official item lookup',
     'GET /mode                                      choose real vs dry-run mode (cookie)',
+    'GET /docs                                      human-readable docs (Web UI / MCP / API)',
     'POST /mcp                                      MCP server (ordering tools for AI clients)',
   ],
   commands: Object.keys(COMMAND_ROUTES),
@@ -421,6 +423,10 @@ export const createHandler = (baseFetch?: FetchSource, assetsFetch?: AssetsFetch
       const modeResponse = handleModeRequest(request, path)
       if (modeResponse) {
         return modeResponse
+      }
+      const docsResponse = handleDocsRequest(path)
+      if (docsResponse) {
+        return docsResponse
       }
       const mode = getMode(request)
       const upstream = mode === 'dry' ? dryFetch : baseFetch

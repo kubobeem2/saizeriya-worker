@@ -50,6 +50,7 @@
 	let confirmDialogOpen = $state(false);
 	let peopleDialogOpen = $state(false);
 	let manualDialogOpen = $state(false);
+	let aboutDialogOpen = $state(false);
 	let cameras = $state<CameraOption[]>([]);
 	let selectedCameraId = $state('');
 	let cameraBusy = $state(false);
@@ -409,10 +410,23 @@
 				<small class="max-w-[min(78vw,360px)] overflow-hidden text-xs font-extrabold text-ellipsis whitespace-nowrap text-white/70">{cameras.find((camera) => camera.id === selectedCameraId)?.label ?? 'カメラ選択中'}</small>
 			{/if}
 		</div>
-		<button class="flex min-h-[38px] items-center gap-2 rounded-full border border-white/20 bg-slate-950/40 px-3.5 text-[13px] font-extrabold text-white no-underline backdrop-blur-xl" onclick={openManualDialog}>
-			<span class="i-tabler-help-circle text-lg"></span>
-			読み取れない場合
-		</button>
+		<div class="flex flex-wrap items-center justify-center gap-2">
+			<button class="flex min-h-[38px] items-center gap-2 rounded-full border border-white/20 bg-slate-950/40 px-3.5 text-[13px] font-extrabold text-white no-underline backdrop-blur-xl" onclick={openManualDialog}>
+				<span class="i-tabler-help-circle text-lg"></span>
+				読み取れない場合
+			</button>
+			<button class="flex min-h-[38px] items-center gap-2 rounded-full border border-white/20 bg-slate-950/40 px-3.5 text-[13px] font-extrabold text-white no-underline backdrop-blur-xl" onclick={() => (aboutDialogOpen = true)}>
+				<span class="i-tabler-info-circle text-lg"></span>
+				このサイトについて
+			</button>
+		</div>
+		<p class="max-w-[min(88vw,520px)] text-center text-[11px] leading-relaxed font-bold text-white/70 [text-shadow:0_1px_12px_rgba(0,0,0,0.7)]">
+			非公式の個人プロジェクトです（サイゼリヤ公式とは関係ありません）。
+			ソースは
+			<a class="text-white underline underline-offset-2" href="https://github.com/kubobeem2/saizeriya-worker" target="_blank" rel="noopener noreferrer">GitHub</a>
+			で公開中 ・
+			<a class="text-white underline underline-offset-2" href="/docs">使い方 / MCP / API</a>
+		</p>
 	</div>
 </main>
 
@@ -460,6 +474,39 @@
 			</div>
 		</div>
 	{/if}
+</AppDialog>
+
+<AppDialog bind:open={aboutDialogOpen} eyebrow="About" title="このサイトについて">
+	<div class="grid gap-3 text-sm leading-relaxed text-slate-700">
+		<p class="m-0">
+			サイゼリヤのモバイルオーダーを、公式アプリなしでブラウザから使うための<strong class="text-slate-950">非公式の個人プロジェクト</strong>です。サイゼリヤ公式とは関係ありません。
+		</p>
+		<p class="m-0">
+			モバイルオーダー用 CLI を Cloudflare Workers に移植し、Web UI（Betterzeriya）からテーブルの QR 読み取り・メニュー・注文・会計までできるようにしたものです。本番モードでは注文が実際に送信され、ドライランではモック相手に全フローを試せます（モードは画面上部のバーから切替）。
+		</p>
+		<p class="m-0">
+			AI クライアントから注文できる <strong class="text-slate-950">MCP サーバ</strong>（<code class="rounded bg-slate-100 px-1 text-[12px]">/mcp</code>）と、プログラムから叩ける <strong class="text-slate-950">HTTP API</strong>（<code class="rounded bg-slate-100 px-1 text-[12px]">/api/*</code>・CLI 互換 API）も公開しています。接続方法やツール・コマンド一覧は説明ページにまとめています。
+		</p>
+		<div class="grid gap-2">
+			<a class="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 font-extrabold text-white no-underline" href="/docs#mcp">
+				<span class="i-tabler-robot text-lg"></span>
+				MCP の使い方
+			</a>
+			<a class="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 font-extrabold text-slate-950 no-underline" href="/docs#api">
+				<span class="i-tabler-api text-lg"></span>
+				API の使い方
+			</a>
+			<a class="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 font-extrabold text-slate-950 no-underline" href="https://github.com/kubobeem2/saizeriya-worker" target="_blank" rel="noopener noreferrer">
+				<span class="i-tabler-brand-github text-lg"></span>
+				GitHub — このサイトのソース
+			</a>
+			<a class="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 font-extrabold text-slate-950 no-underline" href="https://github.com/pnsk-lab/saizeriya" target="_blank" rel="noopener noreferrer">
+				<span class="i-tabler-brand-github text-lg"></span>
+				原作 CLI / Betterzeriya
+			</a>
+			<button class="min-h-11 rounded-lg border border-slate-300 bg-white px-4 font-extrabold text-slate-950" type="button" onclick={() => (aboutDialogOpen = false)}>閉じる</button>
+		</div>
+	</div>
 </AppDialog>
 
 <AppDialog bind:open={manualDialogOpen} eyebrow="Manual" title="QR URL を入力">

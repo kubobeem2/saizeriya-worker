@@ -16,6 +16,8 @@ Web UI は上流に同梱の **Betterzeriya** そのもので、API も2系統�
 Workers では動かない。そこでクライアント本体（fetch + `node-html-parser`
 のみ）を同梱し、Worker 上で API 化した。
 
+> 使い方まとめページ: デプロイ先の **`/docs`** に Web UI / MCP / API の説明とリンクがあります（この README が原典）。
+
 ## Web UI（Betterzeriya）
 
 - `web/` が Betterzeriya 本体。SPA としてビルドし（adapter-static、

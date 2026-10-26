@@ -13,6 +13,8 @@
       "/index.html",
       "/mode",
       "/mode/*",
+      "/docs",
+      "/docs/*",
       "/api/*",
       "/mcp",
       "/mcp/*",

@@ -41,6 +41,12 @@ const CHOOSER_HTML = `<!doctype html>
   .card h2 { margin: 0 0 6px; font-size: 18px; }
   .card p { margin: 0; font-size: 13px; opacity: .8; line-height: 1.6; }
   .current { font-size: 13px; opacity: .75; }
+  footer.about { margin-top: 32px; padding-top: 18px; border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent); font-size: 13px; line-height: 1.7; opacity: .9; }
+  footer.about h2 { font-size: 14px; margin: 0 0 6px; }
+  footer.about p { margin: 0 0 8px; opacity: .85; }
+  footer.about a { color: inherit; font-weight: 700; }
+  footer.about ul { margin: 8px 0 0; padding-left: 18px; }
+  footer.about li { margin: 4px 0; }
 </style>
 </head>
 <body>
@@ -60,6 +66,19 @@ const CHOOSER_HTML = `<!doctype html>
 </a>
 
 <p class="current" id="current"></p>
+
+<footer class="about">
+  <h2>このサイトについて</h2>
+  <p>サイゼリヤのモバイルオーダーを、公式アプリなしでブラウザから使うための<strong>非公式の個人プロジェクト</strong>です。サイゼリヤ公式とは関係ありません。モバイルオーダー用 CLI を Cloudflare Workers に移植し、Web UI（Betterzeriya）から QR 読み取り・注文・会計までできるようにしたものです。</p>
+  <p>ソースコードは GitHub で公開しています。不具合報告や改善提案もそちらへ。</p>
+  <ul>
+    <li><a href="/docs">使い方・MCP / API の説明（このサイト内）</a></li>
+    <li><a href="/docs#mcp">MCP サーバの使い方（AI クライアント向け）</a></li>
+    <li><a href="/docs#api">HTTP API の使い方</a></li>
+    <li><a href="https://github.com/kubobeem2/saizeriya-worker" target="_blank" rel="noopener noreferrer">GitHub: kubobeem2/saizeriya-worker（このサイトのソース）</a></li>
+    <li><a href="https://github.com/pnsk-lab/saizeriya" target="_blank" rel="noopener noreferrer">GitHub: pnsk-lab/saizeriya（原作 CLI / Betterzeriya）</a></li>
+  </ul>
+</footer>
 <script>
   var match = document.cookie.match(/(?:^|; )sz_mode=(real|dry)/)
   if (match) {
