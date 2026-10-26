@@ -25,6 +25,24 @@ Workers では動かない。そこでクライアント本体（fetch + `node-h
   注文したか」表示、AI ページ（WebLLM、ブラウザ内動作）
 - `/ui` は `/` へのリダイレクト
 
+### MCP サーバ（`/mcp`）
+
+AI クライアントから注文フローを操作できる MCP（Model Context Protocol、
+streamable HTTP）サーバも同梱している。接続先は
+`https://<your-domain>/mcp`。
+
+ツール: `menu_search` / `menu_item` / `create_session` /
+`get_session_state` / `set_people_count` / `set_device_name` /
+`lookup_item` / `submit_order` / `get_account` / `get_receipt` /
+`call_staff`
+
+- `create_session` は `mode`（`real` / `dry`）が必須。本番モードは
+  実際に注文が飛ぶので注意。モードはセッション ID の接頭辞
+  （`dry-…` / `real-…`）に埋め込まれ、途中で切り替わらない
+- セッション系ツールは Web UI と同じく `official_session`
+  スナップショットを持ち回る方式
+- `API_KEY` シークレットを設定した場合は `/mcp` にも同じキーを要求する
+
 ### モード選択（本番 / ドライラン）
 
 - 初回アクセス時は `/mode` の選択画面に誘導される。**本番**は公式に

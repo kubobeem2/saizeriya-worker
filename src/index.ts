@@ -30,6 +30,7 @@ import { createClient, type ClientState, type LookupItemResult } from './lib/cli
 import menuData from './data/menu.json'
 import { handleBetterzeriyaAPI } from './betterzeriya'
 import { dryFetch } from './dry'
+import { handleMCP } from './mcp'
 import { getMode, handleModeRequest, injectModeBanner } from './mode'
 
 /* ------------------------------------------------------------------ types */
@@ -401,6 +402,7 @@ const HELP = {
     'GET /menu?q=<query>                           static menu search (CLI: menu)',
     'GET /menu/:code?shop=<id>&table=<id>          official item lookup',
     'GET /mode                                      choose real vs dry-run mode (cookie)',
+    'POST /mcp                                      MCP server (ordering tools for AI clients)',
   ],
   commands: Object.keys(COMMAND_ROUTES),
 }
@@ -425,6 +427,12 @@ export const createHandler = (baseFetch?: FetchSource, assetsFetch?: AssetsFetch
 
       if (path === '/api/config' && method === 'GET') {
         return json({ mode: mode ?? 'real' })
+      }
+
+      /* MCP server. Mode is chosen per create_session call there, so it
+         gets the raw baseFetch, not the cookie-based upstream. */
+      if (path === '/mcp' || path.startsWith('/mcp/')) {
+        return handleMCP(request, env, baseFetch)
       }
 
       /* Betterzeriya Web UI API (/api/*). Snapshot possession is the

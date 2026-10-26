@@ -162,6 +162,106 @@ describe('saizeriya worker (CLI port)', () => {
   })
 })
 
+describe('MCP server (/mcp)', () => {
+  const rpc = async (
+    handler: ReturnType<typeof createHandler>,
+    method: string,
+    params?: unknown,
+    id: number = 1,
+  ) => {
+    const response = await handler(
+      new Request('http://localhost/mcp', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id, method, params }),
+      }),
+      {},
+    )
+    return { response, body: (await response.json()) as any }
+  }
+
+  it('answers initialize, ping and tools/list', async () => {
+    const handler = createHandler(mockServer.fetch as never)
+    const init = await rpc(handler, 'initialize', { protocolVersion: '2025-03-26' })
+    expect(init.body.result.serverInfo.name).toBe('saizeriya-mcp')
+    expect(init.body.result.protocolVersion).toBe('2025-03-26')
+
+    const ping = await rpc(handler, 'ping')
+    expect(ping.body.result).toEqual({})
+
+    const list = await rpc(handler, 'tools/list')
+    const names = list.body.result.tools.map((tool: any) => tool.name)
+    expect(names).toContain('create_session')
+    expect(names).toContain('submit_order')
+    expect(names).toContain('menu_search')
+  })
+
+  it('searches the menu and runs a dry ordering flow end to end', async () => {
+    const throwingFetch = () => {
+      throw new Error('real network must not be used in dry mode')
+    }
+    const handler = createHandler(throwingFetch)
+    const call = async (name: string, args: unknown) => {
+      const { body } = await rpc(handler, 'tools/call', { name, arguments: args })
+      expect(body.error).toBeUndefined()
+      return body.result
+    }
+
+    const search = await call('menu_search', { query: 'ティラミス' })
+    expect(search.isError).toBe(false)
+    expect(search.structuredContent.items[0].id).toBe('3201')
+
+    // mode is a required, explicit choice
+    const noMode = await call('create_session', {
+      qr_url: 'https://ioes.saizeriya.co.jp/saizeriya2/qr',
+    })
+    expect(noMode.isError).toBe(true)
+
+    const created = await call('create_session', {
+      qr_url: 'https://ioes.saizeriya.co.jp/saizeriya2/qr?shop=0525&table=51',
+      mode: 'dry',
+    })
+    expect(created.isError).toBe(false)
+    const session = created.structuredContent
+    expect(session.session_id).toMatch(/^dry-/)
+
+    const people = await call('set_people_count', {
+      session_id: session.session_id,
+      official_session: session.official_session,
+      people_count: 2,
+    })
+    expect(people.structuredContent.state.peopleCount).toBe(2)
+
+    const named = await call('set_device_name', {
+      session_id: session.session_id,
+      official_session: people.structuredContent.official_session,
+      name: 'mcp-test',
+    })
+    expect(named.structuredContent.device_token).toBeTruthy()
+
+    const looked = await call('lookup_item', {
+      session_id: session.session_id,
+      official_session: people.structuredContent.official_session,
+      code: '1202',
+    })
+    expect(looked.structuredContent.item_data.id).toBe('1202')
+
+    const submitted = await call('submit_order', {
+      session_id: session.session_id,
+      official_session: looked.structuredContent.official_session,
+      device_token: named.structuredContent.device_token,
+      cart: [{ code: '1202', count: 2, name: looked.structuredContent.item_data.name }],
+    })
+    expect(submitted.isError).toBe(false)
+
+    const account = await call('get_account', {
+      session_id: session.session_id,
+      official_session: submitted.structuredContent.official_session,
+    })
+    expect(account.structuredContent.account.total).toBe(700)
+  })
+})
+
 describe('mode selection (real vs dry-run)', () => {
   const post = (
     handler: ReturnType<typeof createHandler>,
