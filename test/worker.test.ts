@@ -125,6 +125,8 @@ describe('saizeriya worker (CLI port)', () => {
     const html = await docs.text()
     expect(html).toContain('id="mcp"')
     expect(html).toContain('id="api"')
+    expect(html).toContain('id="legal"')
+    expect(html).toContain('自己責任')
     expect(html).toContain('https://github.com/kubobeem2/saizeriya-worker')
     expect(html).toContain('/mcp')
   })

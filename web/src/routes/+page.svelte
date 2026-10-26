@@ -504,6 +504,9 @@
 				<span class="i-tabler-brand-github text-lg"></span>
 				原作 CLI / Betterzeriya
 			</a>
+			<p class="m-0 text-center text-xs font-bold text-slate-500">
+				利用前に <a class="text-slate-950 underline underline-offset-2" href="/docs#legal">免責・利用上の注意</a> を確認してください（自分のテーブルの QR のみ・いたずら注文禁止）
+			</p>
 			<button class="min-h-11 rounded-lg border border-slate-300 bg-white px-4 font-extrabold text-slate-950" type="button" onclick={() => (aboutDialogOpen = false)}>閉じる</button>
 		</div>
 	</div>

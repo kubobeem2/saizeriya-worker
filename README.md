@@ -18,6 +18,22 @@ Workers では動かない。そこでクライアント本体（fetch + `node-h
 
 > 使い方まとめページ: デプロイ先の **`/docs`** に Web UI / MCP / API の説明とリンクがあります（この README が原典）。
 
+## 免責・利用上の注意
+
+- **非公式プロジェクトです。** 株式会社サイゼリヤおよびその関係会社とは一切関係がなく、公式の承認・推奨を受けたものではありません。「サイゼリヤ」等の商標は各権利者に帰属します。
+- **利用は自己責任です。** 本ソフトウェアの利用により生じた損害・トラブルについて、作者は一切の責任を負いません（`LICENSE` の無保証条項も参照）。
+- **公式サービスの利用規約に従ってください。** 本ソフトウェアは公式モバイルオーダーの非公式クライアントであり、その利用が公式の利用規約に抵触する可能性があります。提供元から停止・削除等の要請があった場合は速やかに従います。規約の確認は利用者自身で行ってください。
+- **自分のテーブルの QR のみ使ってください。** 他人のテーブルへの注文、いたずら注文、店舗の業務を妨げる行為は絶対にしないでください。
+- **本番モードの注文は本物です。** 本番モードで送信した注文は実際に調理され、会計の対象になります。送信前に注文内容・テーブル・金額を必ず確認してください。ドライランでは注文は送信されません。
+- **表示情報の正確性は保証しません。** メニュー・価格・在庫等の情報は公式システムに依存しており、内容の正確性・最新性は保証しません。商品画像等の著作権は各権利者に帰属します。
+- **MCP / API の悪用禁止。** 公開する MCP サーバ・HTTP API を、他者への迷惑行為や店舗への不正な注文に使わないでください。
+
+English summary: Unofficial project, not affiliated with Saizeriya. Use at
+your own risk; no warranty. Follow the official service's terms — this is an
+unofficial client and its use may conflict with them. Only use the QR code
+for your own table; never place prank or fraudulent orders. In real mode
+orders are actually sent and billed — double-check before submitting.
+
 ## Web UI（Betterzeriya）
 
 - `web/` が Betterzeriya 本体。SPA としてビルドし（adapter-static、

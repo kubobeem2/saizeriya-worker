@@ -40,6 +40,7 @@ const DOCS_HTML = `<!doctype html>
   <a href="#web">Web UI</a>
   <a href="#mcp">MCP サーバ</a>
   <a href="#api">HTTP API</a>
+  <a href="#legal">免責・利用上の注意</a>
   <a href="#github">GitHub / ソース</a>
 </nav>
 
@@ -106,6 +107,18 @@ curl -X POST "https://saizeria.kubobeem.tech/sessions/table1/add" -d '{"code":"1
 curl -X POST "https://saizeria.kubobeem.tech/sessions/table1/submit" -d '{}'</code></pre>
 <p>モード（本番 / ドライラン）は Web UI と同じ <code>sz_mode</code> クッキーで切り替わります。<code>API_KEY</code> を設定したデプロイでは CLI 互換 API に <code>x-api-key</code> ヘッダーが必要です（この本番は未設定）。</p>
 
+<h2 id="legal">免責・利用上の注意</h2>
+<p>このサイトおよびソフトウェア（以下「本プロジェクト」）の利用前に、以下を確認してください。</p>
+<ul>
+  <li><strong>非公式プロジェクトです。</strong> 株式会社サイゼリヤおよびその関係会社とは一切関係がなく、公式の承認・推奨を受けたものではありません。「サイゼリヤ」等の商標は各権利者に帰属します。</li>
+  <li><strong>利用は自己責任です。</strong> 本プロジェクトの利用により生じた損害・トラブルについて、作者は一切の責任を負いません（ライセンスの無保証条項も参照）。</li>
+  <li><strong>公式サービスの利用規約に従ってください。</strong> 本プロジェクトは公式モバイルオーダーの非公式クライアントであり、その利用が公式の利用規約に抵触する可能性があります。提供元から停止・削除等の要請があった場合は速やかに従います。規約の確認は利用者自身で行ってください。</li>
+  <li><strong>自分のテーブルの QR のみ使ってください。</strong> 他人のテーブルへの注文、いたずら注文、店舗の業務を妨げる行為は絶対にしないでください。</li>
+  <li><strong>本番モードの注文は本物です。</strong> 本番モードで送信した注文は実際に調理され、会計の対象になります。送信前に注文内容・テーブル・金額を必ず確認してください。ドライランでは注文は送信されません。</li>
+  <li><strong>表示情報の正確性は保証しません。</strong> メニュー・価格・在庫等の情報は公式システムに依存しており、内容の正確性・最新性は保証しません。最終確認は公式の案内・店舗でお願いします。商品画像等の著作権は各権利者に帰属します。</li>
+  <li><strong>MCP / API の悪用禁止。</strong> 公開している MCP サーバ・HTTP API を、他者への迷惑行為や店舗への不正な注文に使わないでください。</li>
+</ul>
+
 <h2 id="github">GitHub / ソースコード</h2>
 <p>詳細な仕様・デプロイ方法・テストは README にあります。不具合報告や改善提案も GitHub へ。</p>
 <ul>
@@ -114,7 +127,7 @@ curl -X POST "https://saizeria.kubobeem.tech/sessions/table1/submit" -d '{}'</co
 </ul>
 
 <footer>
-  <p>非公式の個人プロジェクトです。サイゼリヤ公式とは関係ありません。ライセンスは MIT（原作分を含む、詳細は GitHub の LICENSE を参照）。</p>
+  <p>非公式の個人プロジェクトです。サイゼリヤ公式とは関係ありません。ライセンスは MIT（原作分を含む、詳細は GitHub の LICENSE を参照）。利用条件は <a href="#legal">免責・利用上の注意</a> を確認してください。</p>
   <p><a href="/">トップページへ戻る</a></p>
 </footer>
 </body>

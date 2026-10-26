@@ -75,6 +75,7 @@ const CHOOSER_HTML = `<!doctype html>
     <li><a href="/docs">使い方・MCP / API の説明（このサイト内）</a></li>
     <li><a href="/docs#mcp">MCP サーバの使い方（AI クライアント向け）</a></li>
     <li><a href="/docs#api">HTTP API の使い方</a></li>
+    <li><a href="/docs#legal">免責・利用上の注意</a></li>
     <li><a href="https://github.com/kubobeem2/saizeriya-worker" target="_blank" rel="noopener noreferrer">GitHub: kubobeem2/saizeriya-worker（このサイトのソース）</a></li>
     <li><a href="https://github.com/pnsk-lab/saizeriya" target="_blank" rel="noopener noreferrer">GitHub: pnsk-lab/saizeriya（原作 CLI / Betterzeriya）</a></li>
   </ul>
